@@ -1,8 +1,18 @@
+// Global state for authentication
+let currentAdmin = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   const activitiesList = document.getElementById("activities-list");
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+
+  // Check if user was previously logged in
+  const savedAdmin = localStorage.getItem("currentAdmin");
+  if (savedAdmin) {
+    currentAdmin = savedAdmin;
+    updateAuthUI();
+  }
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -21,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const spotsLeft =
           details.max_participants - details.participants.length;
 
-        // Create participants HTML with delete icons instead of bullet points
+        // Create participants HTML with delete icons - only show if admin is logged in
         const participantsHTML =
           details.participants.length > 0
             ? `<div class="participants-section">
@@ -30,7 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ${details.participants
                   .map(
                     (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
+                      `<li><span class="participant-email">${email}</span>${currentAdmin ? `<button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button>` : ""}</li>`
                   )
                   .join("")}
               </ul>
@@ -73,11 +83,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const activity = button.getAttribute("data-activity");
     const email = button.getAttribute("data-email");
 
+    if (!currentAdmin) {
+      messageDiv.textContent = "Admin login required to unregister students";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      return;
+    }
+
     try {
       const response = await fetch(
         `/activities/${encodeURIComponent(
           activity
-        )}/unregister?email=${encodeURIComponent(email)}`,
+        )}/unregister?email=${encodeURIComponent(email)}&username=${encodeURIComponent(currentAdmin)}`,
         {
           method: "DELETE",
         }
@@ -121,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch(
         `/activities/${encodeURIComponent(
           activity
-        )}/signup?email=${encodeURIComponent(email)}`,
+        )}/signup?email=${encodeURIComponent(email)}&username=${encodeURIComponent(currentAdmin || "")}`,
         {
           method: "POST",
         }
@@ -158,3 +175,85 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize app
   fetchActivities();
 });
+
+// Login modal functions
+function openLoginModal() {
+  document.getElementById("login-modal").style.display = "block";
+  document.getElementById("login-error").textContent = "";
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
+}
+
+function closeLoginModal() {
+  document.getElementById("login-modal").style.display = "none";
+  document.getElementById("login-error").textContent = "";
+}
+
+async function login(event) {
+  event.preventDefault();
+
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  const errorDiv = document.getElementById("login-error");
+
+  try {
+    const response = await fetch("/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      currentAdmin = username;
+      localStorage.setItem("currentAdmin", username);
+      updateAuthUI();
+      closeLoginModal();
+      // Refresh activities to show delete buttons
+      location.reload();
+    } else {
+      errorDiv.textContent = result.detail || "Invalid credentials";
+      errorDiv.style.color = "#d32f2f";
+    }
+  } catch (error) {
+    errorDiv.textContent = "Login failed. Please try again.";
+    errorDiv.style.color = "#d32f2f";
+    console.error("Error logging in:", error);
+  }
+}
+
+function logout() {
+  currentAdmin = null;
+  localStorage.removeItem("currentAdmin");
+  updateAuthUI();
+  location.reload();
+}
+
+function updateAuthUI() {
+  const loginBtn = document.getElementById("login-btn");
+  const logoutBtn = document.getElementById("logout-btn");
+  const userStatus = document.getElementById("user-status");
+
+  if (currentAdmin) {
+    loginBtn.style.display = "none";
+    logoutBtn.style.display = "inline-block";
+    userStatus.textContent = `Logged in as: ${currentAdmin}`;
+    userStatus.style.marginRight = "15px";
+  } else {
+    loginBtn.style.display = "inline-block";
+    logoutBtn.style.display = "none";
+    userStatus.textContent = "";
+  }
+}
+
+// Close modal when clicking outside
+window.addEventListener("click", (event) => {
+  const modal = document.getElementById("login-modal");
+  if (event.target === modal) {
+    closeLoginModal();
+  }
+});
+
