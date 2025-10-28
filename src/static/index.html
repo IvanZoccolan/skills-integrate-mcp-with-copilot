@@ -7,8 +7,35 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- Navbar with admin login -->
+    <nav class="navbar">
+      <div class="navbar-content">
+        <h1>Mergington High School</h1>
+        <div class="navbar-right">
+          <span id="user-status" class="user-status"></span>
+          <button id="login-btn" class="login-btn" onclick="openLoginModal()">👤 Admin</button>
+          <button id="logout-btn" class="logout-btn" style="display:none;" onclick="logout()">🚪 Logout</button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeLoginModal()">&times;</span>
+        <h2>Teacher Login</h2>
+        <form onsubmit="login(event)">
+          <label for="username">Username:</label>
+          <input type="text" id="username" required />
+          <label for="password">Password:</label>
+          <input type="password" id="password" required />
+          <button type="submit">Login</button>
+        </form>
+        <div id="login-error" class="error-message"></div>
+      </div>
+    </div>
+
     <header>
-      <h1>Mergington High School</h1>
       <h2>Extracurricular Activities</h2>
     </header>
 
